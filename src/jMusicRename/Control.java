@@ -2,17 +2,15 @@ package jMusicRename;
 
 import java.io.File;
 
+import com.mpatric.mp3agic.ID3v1Genres;
+import com.mpatric.mp3agic.ID3v2;
+import com.mpatric.mp3agic.ID3v24Tag;
 import com.mpatric.mp3agic.Mp3File;
 
 public class Control {
 
   private static String rootPath;
-
-  private static int filesTotal = 0;
-  private static int filesWith1With2 = 0;
-  private static int filesWith1Without2 = 0;
-  private static int filesWithout1With2 = 0;
-  private static int filesWithout1Without2 = 0;
+  private static int filesOk = 0;
   private static int filesError = 0;
 
   public static void renameMusic(String path) {
@@ -20,53 +18,49 @@ public class Control {
     long t1 = System.currentTimeMillis();
     File folder = new File(path);
     renameMusicFolder(folder);
-    System.out.println("filesTotal: " + filesTotal);
-    System.out.println("filesWith1With2: " + filesWith1With2);
-    System.out.println("filesWith1Without2: " + filesWith1Without2);
-    System.out.println("filesWithout1With2: " + filesWithout1With2);
-    System.out.println("filesWithout1Without2: " + filesWithout1Without2);
-    System.out.println("filesError: " + filesError);
     long t2 = System.currentTimeMillis();
+    System.out.println("Files without error: " + filesOk);
+    System.out.println("Files with error: " + filesError);
     System.out.println("Time: " + (t2 - t1) / 1000 / 60 + " minutes.");
   }
 
   private static void renameMusicFolder(File folder) {
-    if (folder.isDirectory()) {
-      System.out.println("Directory " + folder.getName());
-      for (File file : folder.listFiles()) {
-        if (file.isFile()) {
-          renameMusicFile(file);
-        } else if (file.isDirectory()) {
-          renameMusicFolder(file);
-        }
+    System.out.println("Folder: " + folder.getPath());
+    for (File file : folder.listFiles()) {
+      if (file.isDirectory()) {
+        renameMusicFolder(file);
+      } else if (file.isFile()) {
+        renameMusicFile(file);
       }
     }
   }
 
   private static void renameMusicFile(File file) {
-    filesTotal++;
+
     try {
-      Mp3Info mp3info = new Mp3Info(file.getPath().substring(file.getPath().indexOf(rootPath)));
-      Mp3File mp3file = new Mp3File(file.getPath());
-      if (mp3file.hasId3v1Tag() && mp3file.hasId3v2Tag()) {
-        filesWith1With2++;
-      } else if (mp3file.hasId3v1Tag() && !mp3file.hasId3v2Tag()) {
-        filesWith1Without2++;
-      } else if (!mp3file.hasId3v1Tag() && mp3file.hasId3v2Tag()) {
-        filesWithout1With2++;
-      } else {
-        filesWithout1Without2++;
-      }
-      System.out.println("File " + file.getName() + " hasId3v1Tag: " + mp3file.hasId3v1Tag()
-          + " hasId3v2Tag: " + mp3file.hasId3v2Tag() + ".");
-      System.out.println("Genre " + mp3info.getGenre());
-      System.out.println("Country " + mp3info.getCountry());
-      System.out.println("Artist " + mp3info.getArtist());
-      System.out.println("Album " + mp3info.getAlbum());
-      System.out.println("Track " + mp3info.getTrack());
+      String absolutePath = file.getPath();
+      String relativePath = absolutePath.substring(rootPath.length() + 1);
+      Mp3Info mp3info = new Mp3Info(relativePath);
+
+      File fileTemp = new File(absolutePath + "Test");
+      file.renameTo(fileTemp);
+      Mp3File mp3file = new Mp3File(fileTemp.getPath());
+
+      ID3v2 id3v2Tag = mp3file.hasId3v2Tag() ? id3v2Tag = mp3file.getId3v2Tag() : new ID3v24Tag();
+      id3v2Tag.setGenre(ID3v1Genres.matchGenreDescription(mp3info.getGenre()));
+      id3v2Tag.setComment(mp3info.getCountry());
+      id3v2Tag.setArtist(mp3info.getArtist());
+      id3v2Tag.setAlbum(mp3info.getAlbum());
+      id3v2Tag.setTrack(mp3info.getTrack());
+      mp3file.setId3v2Tag(id3v2Tag);
+
+      mp3file.save(absolutePath);
+      fileTemp.delete();
+      filesOk++;
+
     } catch (Exception e) {
       filesError++;
-      System.out.println("Error in file: " + file.getName());
+      System.out.println("Error in " + file.getPath() + ": " + e);
     }
   }
 }
