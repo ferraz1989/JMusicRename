@@ -36,31 +36,45 @@ public class Control {
   }
 
   private static void renameMusicFile(File file) {
-
     try {
-      String absolutePath = file.getPath();
-      String relativePath = absolutePath.substring(rootPath.length() + 1);
-      Mp3Info mp3info = new Mp3Info(relativePath);
+      final String absolutePath = file.getPath();
+      final String relativePath = absolutePath.substring(rootPath.length());
+      final String fileName = relativePath.substring(relativePath.lastIndexOf('/') + 1);
 
-      File fileTemp = new File(absolutePath + "Test");
+      StringBuilder folderStructure = new StringBuilder(relativePath.substring(0, relativePath.lastIndexOf('/')));
+      final String genre = getNextFolder(folderStructure);
+      final String artist = getNextFolder(folderStructure);
+      final String album = getNextFolder(folderStructure);
+
+      final File fileTemp = new File(absolutePath + "Test");
       file.renameTo(fileTemp);
-      Mp3File mp3file = new Mp3File(fileTemp.getPath());
+      final Mp3File mp3file = new Mp3File(fileTemp.getPath());
 
-      ID3v2 id3v2Tag = mp3file.hasId3v2Tag() ? id3v2Tag = mp3file.getId3v2Tag() : new ID3v24Tag();
-      id3v2Tag.setGenre(ID3v1Genres.matchGenreDescription(mp3info.getGenre()));
-      id3v2Tag.setComment(mp3info.getCountry());
-      id3v2Tag.setArtist(mp3info.getArtist());
-      id3v2Tag.setAlbum(mp3info.getAlbum());
-      id3v2Tag.setTrack(mp3info.getTrack());
+      final ID3v2 id3v2Tag = mp3file.hasId3v2Tag() ? mp3file.getId3v2Tag() : new ID3v24Tag();
+      id3v2Tag.setGenre(ID3v1Genres.matchGenreDescription(genre));
+      id3v2Tag.setArtist(artist);
+      id3v2Tag.setAlbum(album);
+      id3v2Tag.setTrack(fileName);
       mp3file.setId3v2Tag(id3v2Tag);
 
       mp3file.save(absolutePath);
       fileTemp.delete();
       filesOk++;
-
     } catch (Exception e) {
       filesError++;
       System.out.println("Error in " + file.getPath() + ": " + e);
     }
+  }
+
+  private static String getNextFolder(StringBuilder folderStructure) {
+    if (folderStructure.toString().indexOf('/') == -1) {
+      return "";
+    }
+    String folder = folderStructure.substring(1);
+    if (folder.indexOf('/') != -1) {
+      folder = folder.substring(0, folder.indexOf('/'));
+    }
+    folderStructure.delete(0, folder.length() + 1);
+    return folder;
   }
 }
